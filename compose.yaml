@@ -1,0 +1,67 @@
+
+services:
+  db:
+    image: postgres:16
+    container_name: usage-metering-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: metering
+      POSTGRES_PASSWORD: metering_dev_password
+      POSTGRES_DB: usage_metering
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metering -d usage_metering"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  
+  setup:
+    build: .
+    environment:
+      DATABASE_URL: postgres://metering:metering_dev_password@db:5432/usage_metering
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - npm run db:migrate && npm run db:seed
+    restart: "no"
+
+
+  server:
+    build: .
+    container_name: usage-metering-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://metering:metering_dev_password@db:5432/usage_metering
+      ADMIN_SETUP_KEY: ${ADMIN_SETUP_KEY:?Set ADMIN_SETUP_KEY in .env}
+    depends_on:
+     - setup
+   
+
+  
+  client:
+    build: .
+    profiles:
+      - demo
+    environment:
+      API_BASE_URL: http://server:3000
+      DEMO_API_KEY: ${DEMO_API_KEY}
+      DEMO_USER_1: ${DEMO_USER_1}
+      DEMO_USER_2: ${DEMO_USER_2}
+      DEMO_CUSTOM_PLAN_ID: ${DEMO_CUSTOM_PLAN_ID}
+    depends_on:
+      - server
+    command: ["npx", "tsx", "client/demo.ts"]
+
+
+volumes:
+  postgres_data:
