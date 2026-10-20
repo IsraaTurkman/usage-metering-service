@@ -31,7 +31,7 @@ I built this project using TypeScript, Express, PostgreSQL, and Drizzle ORM. The
 **1. Clone the repository**
 
 ```bash
-git clone <repository-url>
+git clone <https://github.com/IsraaTurkman/usage-metering-service.git>
 cd usage-metering-service
 ```
 
