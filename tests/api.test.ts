@@ -135,3 +135,149 @@ describe.skipIf(!TEST_API_KEY)(
     });
   }
 );
+
+
+
+describe.skipIf(!process.env.ADMIN_SETUP_KEY)(
+  "Quota and Idempotency Integration Tests",
+  () => {
+    it("accepts usage, rejects excess, and prevents double charging", async () => {
+      const adminKey = process.env.ADMIN_SETUP_KEY!;
+
+      // Create a separate test account
+      const accountResponse = await fetch(
+        `${BASE_URL}/api/accounts`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-admin-key": adminKey,
+          },
+          body: JSON.stringify({
+            name: `integration-test-${crypto.randomUUID()}`,
+            planName: "Starter",
+          }),
+        }
+      );
+
+      expect(accountResponse.status).toBe(201);
+
+      const accountData = await accountResponse.json();
+      const testApiKey = accountData.apiKey as string;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "x-api-key": testApiKey,
+      };
+
+      // Create a user with a predefined plan
+      const userResponse = await fetch(
+        `${BASE_URL}/api/users`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            externalId: `test-user-${crypto.randomUUID()}`,
+            planName: "Basic",
+          }),
+        }
+      );
+
+      expect(userResponse.status).toBe(201);
+
+      const userData = await userResponse.json();
+      const userId = userData.user.id as string;
+
+      // Check initial usage
+      const beforeResponse = await fetch(
+        `${BASE_URL}/api/usage/account`,
+        { headers }
+      );
+
+      expect(beforeResponse.status).toBe(200);
+
+      const before = await beforeResponse.json();
+
+      // Accept a valid request
+      const requestId = crypto.randomUUID();
+
+      const requestBody = {
+        userId,
+        units: 1,
+        requestId,
+      };
+
+      const acceptedResponse = await fetch(
+        `${BASE_URL}/api/consume`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      expect(acceptedResponse.status).toBe(200);
+
+      const accepted = await acceptedResponse.json();
+      expect(accepted.accepted).toBe(true);
+
+      // Repeating the same request must not charge twice
+      const replayResponse = await fetch(
+        `${BASE_URL}/api/consume`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      expect(replayResponse.status).toBe(200);
+
+      const replay = await replayResponse.json();
+      expect(replay.accepted).toBe(true);
+
+      // Verify usage increased exactly once
+      const afterReplayResponse = await fetch(
+        `${BASE_URL}/api/usage/account`,
+        { headers }
+      );
+
+      const afterReplay = await afterReplayResponse.json();
+
+      expect(afterReplay.consumedUnits).toBe(
+        before.consumedUnits + 1
+      );
+
+      // Attempt to exceed the account's remaining allowance
+      const rejectedResponse = await fetch(
+        `${BASE_URL}/api/consume`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            userId,
+            units: 2147483647,
+            requestId: crypto.randomUUID(),
+          }),
+        }
+      );
+
+      expect(rejectedResponse.status).toBe(403);
+
+      const rejected = await rejectedResponse.json();
+      expect(rejected.accepted).toBe(false);
+
+      // Rejected requests must not consume quota
+      const finalResponse = await fetch(
+        `${BASE_URL}/api/usage/account`,
+        { headers }
+      );
+
+      const finalUsage = await finalResponse.json();
+
+      expect(finalUsage.consumedUnits).toBe(
+        before.consumedUnits + 1
+      );
+    });
+  }
+);
