@@ -5,13 +5,13 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-  "dev": "tsx watch src/server.ts",
-  "build": "tsc",
-  "start": "node dist/server.js",
-  "db:migrate": "drizzle-kit migrate",
-  "db:seed": "tsx src/db/seed.ts",
-  "test": "vitest run"
-},
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/db/seed.ts",
+    "test": "vitest run"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
