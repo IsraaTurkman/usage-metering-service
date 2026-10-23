@@ -143,3 +143,38 @@ node --env-file=.env --import tsx scripts/load-test.ts
 - The `.env` file is excluded from Git.
 - Monthly usage is not reset when switching plans; the new limits apply to the existing usage.
 - The project focuses on usage tracking and quota enforcement, not billing.
+
+
+
+## Frontend Dashboard
+
+The project includes a React and TypeScript dashboard that allows users to:
+
+- Monitor monthly usage and remaining quotas.
+- View registered users and available plans.
+- Simulate usage requests.
+- Review accepted and rejected requests.
+
+### Running the Frontend
+
+First, make sure the backend is running:
+
+```bash
+docker compose up -d --build
+```
+
+Then open a new terminal and run:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the dashboard in your browser:
+
+http://localhost:5173
+
+Enter your account API key to connect to the dashboard.
+
+The frontend communicates with the backend through the Vite development proxy.
